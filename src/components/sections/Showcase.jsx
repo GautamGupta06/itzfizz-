@@ -25,24 +25,27 @@ export default function Showcase() {
     const init = () => {
       const totalW  = cards.scrollWidth
       const viewW   = window.innerWidth
-      const dist    = totalW - viewW + 80
+      // Ensure the last card scrolls comfortably into view with generous right clearance
+      const dist    = Math.max(totalW - viewW + 160, 400)
 
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: section,
           start: 'top top',
-          end: () => `+=${dist + 300}`,
-          pin: true, anticipatePin: 1, scrub: 1.2,
+          end: () => `+=${dist}`,
+          pin: true, 
+          anticipatePin: 1, 
+          scrub: 1,
           invalidateOnRefresh: true,
           onUpdate: self => { if (bar) bar.style.transform = `scaleX(${self.progress})` },
         },
       })
-      tl.to(cards, { x: () => -(totalW - viewW + 80), ease: 'none' })
+      tl.to(cards, { x: () => -(totalW - viewW + 160), ease: 'none' })
 
       cards.querySelectorAll('.card-art').forEach(art => {
         gsap.to(art, {
-          x: '10%', ease: 'none',
-          scrollTrigger: { trigger: section, start: 'top top', end: () => `+=${dist + 300}`, scrub: 1.5, invalidateOnRefresh: true },
+          x: '8%', ease: 'none',
+          scrollTrigger: { trigger: section, start: 'top top', end: () => `+=${dist}`, scrub: 1, invalidateOnRefresh: true },
         })
       })
     }

@@ -1,8 +1,6 @@
 /**
  * Splits a string into per-character <span class="char"> elements
- * wrapped in overflow:hidden word groups.
- *
- * Returns an HTML string to inject via innerHTML.
+ * wrapped in overflow:hidden word groups for clean GSAP intro slide-up.
  */
 export function splitChars(text) {
   return text
