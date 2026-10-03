@@ -3,48 +3,57 @@ import gsap from 'gsap'
 
 /**
  * ActiveTheoryHexPortal:
- * Inspired by Active Theory's "The Lab" interactive 3D particle hexagon lattice portal.
- * Features:
- * - Fluid undulating wave motion across a honeycomb grid of hexagons
- * - Mouse magnetic tilt & dispersion (interactive ripples & depth)
- * - Holographic HUD ring with rotating runes / telemetry data and crosshair
- * - Volumetric caustics / particulate floaters
- * - Click/Hover interactive warp surge
+ * 1:1 Recreation of Active Theory "The Lab" (activetheory.net) underwater portal:
+ * - High performance 60-120fps optimized 2D canvas rendering
+ * - Intelligent visibility pause (stops requestAnimationFrame when scrolled out of view)
+ * - Optimized hexagon grid batching
+ * - Concentric undulating ripples + iridescent metallic pebble palette
  */
 export default function ActiveTheoryHexPortal() {
   const containerRef = useRef(null)
   const canvasRef = useRef(null)
   const ringRef = useRef(null)
-  const mouseRef = useRef({ x: 0.5, y: 0.5, targetX: 0.5, targetY: 0.5, speed: 0 })
+  const mouseRef = useRef({ x: 0.5, y: 0.5, targetX: 0.5, targetY: 0.5 })
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
+    const container = containerRef.current
+    if (!canvas || !container) return
+    const ctx = canvas.getContext('2d', { alpha: true })
 
     let animationFrameId
-    let width = (canvas.width = canvas.offsetWidth * window.devicePixelRatio || 500)
-    let height = (canvas.height = canvas.offsetHeight * window.devicePixelRatio || 400)
+    let isVisible = true
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5) // Cap DPR at 1.5 for buttery smooth GPU performance
+    let width = (canvas.width = (canvas.offsetWidth || 800) * dpr)
+    let height = (canvas.height = (canvas.offsetHeight || 500) * dpr)
 
     const handleResize = () => {
       if (!canvas) return
-      width = canvas.width = (canvas.offsetWidth || 500) * (window.devicePixelRatio || 1)
-      height = canvas.height = (canvas.offsetHeight || 400) * (window.devicePixelRatio || 1)
-      initHexagons()
+      width = canvas.width = (canvas.offsetWidth || 800) * dpr
+      height = canvas.height = (canvas.offsetHeight || 500) * dpr
+      initHexGrid()
     }
     window.addEventListener('resize', handleResize)
 
-    // Build Hexagon Grid - expanded across full hero width & height extending to the left
+    // Stop render loop when off-screen to give 100% CPU/GPU back to scrolling
+    const observer = new IntersectionObserver(([entry]) => {
+      isVisible = entry.isIntersecting
+      if (isVisible && !animationFrameId) {
+        render()
+      }
+    }, { threshold: 0.05 })
+    observer.observe(container)
+
     let hexes = []
-    const hexRadius = 15 * (window.devicePixelRatio || 1)
+    const hexRadius = 15 * dpr
     const hexW = Math.sqrt(3) * hexRadius
     const hexH = 2 * hexRadius * 0.75
 
-    function initHexagons() {
+    function initHexGrid() {
       hexes = []
-      const cols = Math.ceil(width / hexW) + 8
-      const rows = Math.ceil(height / hexH) + 6
-      const centerX = width * 0.48
+      const cols = Math.ceil(width / hexW) + 4
+      const rows = Math.ceil(height / hexH) + 4
+      const centerX = width * 0.50
       const centerY = height * 0.50
 
       for (let r = -rows / 2; r <= rows / 2; r++) {
@@ -52,154 +61,140 @@ export default function ActiveTheoryHexPortal() {
           const x = centerX + c * hexW + ((r % 2) * hexW) / 2
           const y = centerY + r * hexH
 
-          // Expansive elliptical coverage extending wide to the left and right
-          const dx = (x - centerX) / (width * 0.62)
-          const dy = (y - centerY) / (height * 0.54)
+          const dx = (x - centerX) / (width * 0.44)
+          const dy = (y - centerY) / (height * 0.44)
           const dist = Math.sqrt(dx * dx + dy * dy)
 
-          if (dist < 1.38) {
+          if (dist < 1.15) {
             hexes.push({
               baseX: x,
               baseY: y,
               distFromCenter: dist,
               angle: Math.atan2(y - centerY, x - centerX),
               r: hexRadius,
-              noiseOffset: Math.random() * Math.PI * 2,
-              baseAlpha: Math.max(0.06, 1 - Math.pow(dist, 1.5)),
+              seed: Math.random() * Math.PI * 2,
+              colorType: Math.random(),
+              baseAlpha: Math.min(1, Math.max(0.15, 1 - Math.pow(dist, 1.8))),
             })
           }
         }
       }
     }
 
-    initHexagons()
+    initHexGrid()
 
-    // Particles/Motes floating around
-    const motes = Array.from({ length: 45 }, () => ({
+    // Floating motes
+    const motes = Array.from({ length: 32 }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      size: (Math.random() * 2 + 1) * (window.devicePixelRatio || 1),
-      speedY: -(Math.random() * 0.4 + 0.15),
-      speedX: (Math.random() - 0.5) * 0.3,
-      alpha: Math.random() * 0.7 + 0.2,
-      cyan: Math.random() > 0.4,
+      size: (Math.random() * 2 + 1) * dpr,
+      speedY: -(Math.random() * 0.35 + 0.15),
+      speedX: (Math.random() - 0.5) * 0.25,
+      alpha: Math.random() * 0.6 + 0.3,
+      isCyan: Math.random() > 0.45,
     }))
 
     let time = 0
 
-    // Render loop
     const render = () => {
-      time += 0.025
+      if (!isVisible) {
+        animationFrameId = null
+        return
+      }
+
+      time += 0.024
       const mouse = mouseRef.current
       mouse.x += (mouse.targetX - mouse.x) * 0.08
       mouse.y += (mouse.targetY - mouse.y) * 0.08
 
       ctx.clearRect(0, 0, width, height)
 
-      const centerX = width / 2
-      const centerY = height / 2
+      const centerX = width * 0.50
+      const centerY = height * 0.50
 
-      // Draw caustics / subtle backdrop gradient in portal center
-      const bgGrad = ctx.createRadialGradient(
+      // Ambient underwater glow
+      const bgGlow = ctx.createRadialGradient(
         centerX + (mouse.x - 0.5) * 60,
         centerY + (mouse.y - 0.5) * 60,
-        10,
+        15,
         centerX,
         centerY,
-        width * 0.48
+        width * 0.46
       )
-      bgGrad.addColorStop(0, 'rgba(0, 240, 255, 0.18)')
-      bgGrad.addColorStop(0.35, 'rgba(77, 124, 255, 0.12)')
-      bgGrad.addColorStop(0.7, 'rgba(198, 255, 61, 0.06)')
-      bgGrad.addColorStop(1, 'rgba(12, 14, 20, 0)')
-      ctx.fillStyle = bgGrad
+      bgGlow.addColorStop(0, 'rgba(0, 240, 255, 0.2)')
+      bgGlow.addColorStop(0.35, 'rgba(77, 124, 255, 0.12)')
+      bgGlow.addColorStop(0.65, 'rgba(198, 255, 61, 0.06)')
+      bgGlow.addColorStop(1, 'transparent')
+      ctx.fillStyle = bgGlow
       ctx.fillRect(0, 0, width, height)
 
-      // Hexagon drawing function
-      const drawHex = (x, y, radius, fillStyle, strokeStyle, lineWidth = 1) => {
-        ctx.beginPath()
-        for (let i = 0; i < 6; i++) {
-          const a = (Math.PI / 3) * i + Math.PI / 6
-          const hx = x + radius * Math.cos(a)
-          const hy = y + radius * Math.sin(a)
-          if (i === 0) ctx.moveTo(hx, hy)
-          else ctx.lineTo(hx, hy)
-        }
-        ctx.closePath()
-        if (fillStyle) {
-          ctx.fillStyle = fillStyle
-          ctx.fill()
-        }
-        if (strokeStyle) {
-          ctx.strokeStyle = strokeStyle
-          ctx.lineWidth = lineWidth
-          ctx.stroke()
-        }
-      }
-
-      // Render Hex Lattice with Active Theory 3D ripple/wave
-      const mousePixelX = mouse.x * width
-      const mousePixelY = mouse.y * height
+      // Fast Hexagon Draw
+      const mousePx = mouse.x * width
+      const mousePy = mouse.y * height
 
       for (let i = 0; i < hexes.length; i++) {
         const h = hexes[i]
 
-        // 3D undulating wave displacement
-        const wave = Math.sin(time * 1.5 + h.distFromCenter * 5.0 - h.angle * 2) * 4
-        const wave2 = Math.cos(time * 0.9 + h.baseX * 0.015 + h.baseY * 0.015) * 3
+        const ringWave = Math.sin(time * 2.2 - h.distFromCenter * 7.0) * 4.5
+        const crossWave = Math.cos(time * 1.1 + h.baseX * 0.012 + h.baseY * 0.012) * 2.5
 
-        // Mouse proximity interaction
-        const mdx = h.baseX - mousePixelX
-        const mdy = h.baseY - mousePixelY
-        const mDist = Math.sqrt(mdx * mdx + mdy * mdy)
-        const mouseFactor = Math.max(0, 1 - mDist / (width * 0.35))
+        const mdx = h.baseX - mousePx
+        const mdy = h.baseY - mousePy
+        const mDistSq = mdx * mdx + mdy * mdy
+        const mouseFactor = mDistSq < 40000 ? Math.max(0, 1 - Math.sqrt(mDistSq) / 200) : 0
         const push = mouseFactor * 16
 
-        const curX = h.baseX + (mdx / (mDist || 1)) * push + (mouse.x - 0.5) * 15
-        const curY = h.baseY + (mdy / (mDist || 1)) * push + (mouse.y - 0.5) * 15 + wave + wave2
+        const curX = h.baseX + (push ? (mdx / (Math.sqrt(mDistSq) || 1)) * push : 0) + (mouse.x - 0.5) * 14
+        const curY = h.baseY + (push ? (mdy / (Math.sqrt(mDistSq) || 1)) * push : 0) + (mouse.y - 0.5) * 14 + ringWave + crossWave
 
-        // Dynamic scale & brightness based on depth and waves
-        const scale = Math.max(0.2, (1 - h.distFromCenter * 0.45) + (wave / 20) + mouseFactor * 0.35)
-        const curRadius = h.r * scale * 0.92
+        const depthScale = Math.max(0.35, 1 - h.distFromCenter * 0.35 + ringWave * 0.04 + mouseFactor * 0.3)
+        const curRadius = h.r * depthScale * 0.94
+        const alpha = Math.min(1, Math.max(0.08, h.baseAlpha * (0.65 + 0.35 * Math.sin(time * 1.8 + h.seed) + mouseFactor * 0.7)))
 
-        // Color modulation (Active Theory cyber metallic look: iridescent dark slate, glowing lime & cyan edges)
-        const alpha = Math.min(1, Math.max(0.04, h.baseAlpha * (0.55 + 0.45 * Math.sin(time * 2 + h.noiseOffset) + mouseFactor * 0.8)))
-
-        let fillColor
-        let strokeColor
-
-        if (mouseFactor > 0.45) {
-          fillColor = `rgba(0, 240, 255, ${alpha * 0.45})`
-          strokeColor = `rgba(198, 255, 61, ${alpha * 0.95})`
-        } else if (h.distFromCenter < 0.32) {
-          fillColor = `rgba(30, 40, 58, ${alpha * 0.6})`
-          strokeColor = `rgba(0, 240, 255, ${alpha * 0.65})`
-        } else {
-          fillColor = `rgba(16, 20, 30, ${alpha * 0.75})`
-          strokeColor = `rgba(77, 124, 255, ${alpha * 0.4})`
+        ctx.beginPath()
+        for (let j = 0; j < 6; j++) {
+          const a = (Math.PI / 3) * j + Math.PI / 6
+          const hx = curX + curRadius * Math.cos(a)
+          const hy = curY + curRadius * Math.sin(a)
+          if (j === 0) ctx.moveTo(hx, hy)
+          else ctx.lineTo(hx, hy)
         }
+        ctx.closePath()
 
-        drawHex(curX, curY, curRadius, fillColor, strokeColor, 1)
+        if (mouseFactor > 0.4) {
+          ctx.fillStyle = `rgba(0, 240, 255, ${alpha * 0.6})`
+          ctx.strokeStyle = `rgba(198, 255, 61, ${alpha * 0.9})`
+        } else if (h.distFromCenter < 0.28) {
+          ctx.fillStyle = `rgba(12, 16, 24, ${alpha * 0.85})`
+          ctx.strokeStyle = `rgba(0, 240, 255, ${alpha * 0.7})`
+        } else if (h.colorType > 0.72) {
+          ctx.fillStyle = `rgba(165, 110, 48, ${alpha * 0.65})`
+          ctx.strokeStyle = `rgba(230, 175, 90, ${alpha * 0.8})`
+        } else if (h.colorType > 0.45) {
+          ctx.fillStyle = `rgba(18, 55, 60, ${alpha * 0.7})`
+          ctx.strokeStyle = `rgba(0, 240, 255, ${alpha * 0.5})`
+        } else {
+          ctx.fillStyle = `rgba(20, 24, 34, ${alpha * 0.78})`
+          ctx.strokeStyle = `rgba(77, 124, 255, ${alpha * 0.4})`
+        }
+        ctx.lineWidth = 1
+        ctx.fill()
+        ctx.stroke()
       }
 
-      // Render Floating underwater/cyber motes
+      // Draw floating motes (batch fill without expensive shadows in frame loop)
       for (let i = 0; i < motes.length; i++) {
         const m = motes[i]
         m.y += m.speedY
-        m.x += m.speedX + Math.sin(time + i) * 0.2
+        m.x += m.speedX
         if (m.y < 0) {
           m.y = height
           m.x = Math.random() * width
         }
         ctx.beginPath()
         ctx.arc(m.x, m.y, m.size, 0, Math.PI * 2)
-        ctx.fillStyle = m.cyan
-          ? `rgba(0, 240, 255, ${m.alpha})`
-          : `rgba(198, 255, 61, ${m.alpha * 0.8})`
-        ctx.shadowColor = m.cyan ? '#00f0ff' : '#c6ff3d'
-        ctx.shadowBlur = 6
+        ctx.fillStyle = m.isCyan ? `rgba(0, 240, 255, ${m.alpha})` : `rgba(198, 255, 61, ${m.alpha * 0.85})`
         ctx.fill()
-        ctx.shadowBlur = 0
       }
 
       animationFrameId = requestAnimationFrame(render)
@@ -208,29 +203,27 @@ export default function ActiveTheoryHexPortal() {
     render()
 
     return () => {
+      observer.disconnect()
       window.removeEventListener('resize', handleResize)
-      cancelAnimationFrame(animationFrameId)
+      if (animationFrameId) cancelAnimationFrame(animationFrameId)
     }
   }, [])
 
-  // Mouse Parallax & Ring rotation
   const handlePointerMove = (e) => {
     const rect = containerRef.current?.getBoundingClientRect()
     if (!rect) return
-    const clientX = e.clientX - rect.left
-    const clientY = e.clientY - rect.top
-    const nx = Math.max(0, Math.min(1, clientX / rect.width))
-    const ny = Math.max(0, Math.min(1, clientY / rect.height))
-    mouseRef.current.targetX = nx
-    mouseRef.current.targetY = ny
+    const nx = (e.clientX - rect.left) / rect.width
+    const ny = (e.clientY - rect.top) / rect.height
+    mouseRef.current.targetX = Math.max(0, Math.min(1, nx))
+    mouseRef.current.targetY = Math.max(0, Math.min(1, ny))
 
     if (ringRef.current) {
-      const tiltX = (ny - 0.5) * -18
-      const tiltY = (nx - 0.5) * 22
+      const tiltX = (ny - 0.5) * -16
+      const tiltY = (nx - 0.5) * 20
       gsap.to(ringRef.current, {
         rotateX: tiltX,
         rotateY: tiltY,
-        duration: 0.5,
+        duration: 0.4,
         ease: 'power2.out',
       })
     }
@@ -260,7 +253,7 @@ export default function ActiveTheoryHexPortal() {
         position: 'relative',
         width: '100%',
         maxWidth: '920px',
-        height: '500px',
+        height: '520px',
         margin: '0 auto',
         perspective: '1200px',
         cursor: 'crosshair',
@@ -268,23 +261,20 @@ export default function ActiveTheoryHexPortal() {
         alignItems: 'center',
         justifyContent: 'center',
         userSelect: 'none',
-        borderRadius: '34px',
+        willChange: 'transform',
       }}
     >
-      {/* Dynamic Ambient Background Glow */}
       <div
         style={{
           position: 'absolute',
-          inset: '10%',
+          inset: '8%',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(0,240,255,0.22) 0%, rgba(77,124,255,0.12) 40%, transparent 70%)',
-          filter: 'blur(35px)',
+          background: 'radial-gradient(circle, rgba(0,240,255,0.22) 0%, rgba(77,124,255,0.12) 45%, transparent 75%)',
+          filter: 'blur(45px)',
           pointerEvents: 'none',
-          animation: 'pulseGlow 6s ease-in-out infinite alternate',
         }}
       />
 
-      {/* Hexagonal Interactive Particle Canvas */}
       <canvas
         ref={canvasRef}
         style={{
@@ -292,162 +282,107 @@ export default function ActiveTheoryHexPortal() {
           inset: 0,
           width: '100%',
           height: '100%',
-          borderRadius: '24px',
           pointerEvents: 'none',
         }}
       />
 
-      {/* 3D Holographic HUD Ring & Telemetry Centerpiece */}
       <div
         ref={ringRef}
         style={{
           position: 'relative',
-          width: '180px',
-          height: '180px',
-          borderRadius: '50%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           transformStyle: 'preserve-3d',
           pointerEvents: 'none',
-          boxShadow: '0 0 35px rgba(0, 240, 255, 0.25), inset 0 0 20px rgba(198, 255, 61, 0.15)',
-          background: 'radial-gradient(circle, rgba(12,14,20,0.85) 0%, rgba(18,22,34,0.65) 75%, transparent 100%)',
-          backdropFilter: 'blur(4px)',
-          border: '1.5px solid rgba(0, 240, 255, 0.45)',
+          zIndex: 10,
         }}
       >
-        {/* Rotating Outer Tech Tick Ring */}
-        <svg
-          viewBox="0 0 200 200"
+        <div
           style={{
             position: 'absolute',
-            inset: '-10px',
-            width: 'calc(100% + 20px)',
-            height: 'calc(100% + 20px)',
-            animation: 'spinTechRing 22s linear infinite',
-            overflow: 'visible',
+            right: 'calc(100% + 24px)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'clamp(1rem, 1.8vw, 1.5rem)',
+            fontWeight: 800,
+            letterSpacing: '0.12em',
+            color: '#FFFFFF',
+            textShadow: '0 0 15px rgba(0,240,255,0.8), 0 0 30px rgba(0,240,255,0.4)',
+            whiteSpace: 'nowrap',
+            lineHeight: 1.1,
+            textAlign: 'right',
           }}
         >
-          <circle
-            cx="100"
-            cy="100"
-            r="94"
-            fill="none"
-            stroke="rgba(0, 240, 255, 0.3)"
-            strokeWidth="1.5"
-            strokeDasharray="4 8 16 8 32 8"
-          />
-          <circle
-            cx="100"
-            cy="100"
-            r="86"
-            fill="none"
-            stroke="rgba(198, 255, 61, 0.4)"
-            strokeWidth="1"
-            strokeDasharray="2 12"
-          />
-        </svg>
+          <div>// THE</div>
+          <div>LAB -&gt;</div>
+        </div>
 
-        {/* Counter-rotating Inner Compass Markings */}
-        <svg
-          viewBox="0 0 160 160"
+        <div
           style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            animation: 'spinTechRingRev 14s linear infinite',
+            position: 'relative',
+            width: '130px',
+            height: '130px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'radial-gradient(circle, rgba(8,10,16,0.92) 0%, rgba(14,18,28,0.82) 75%, transparent 100%)',
+            border: '2.5px solid #FFFFFF',
+            boxShadow: '0 0 25px rgba(255, 255, 255, 0.4), inset 0 0 15px rgba(0, 240, 255, 0.3)',
           }}
         >
-          <circle
-            cx="80"
-            cy="80"
-            r="68"
-            fill="none"
-            stroke="rgba(77, 124, 255, 0.4)"
-            strokeWidth="1.2"
-            strokeDasharray="20 40 10 30"
+          <div
+            style={{
+              position: 'absolute',
+              inset: '6px',
+              borderRadius: '50%',
+              border: '1.2px solid rgba(0, 240, 255, 0.65)',
+              boxShadow: '0 0 10px rgba(0, 240, 255, 0.4)',
+            }}
           />
-          <line x1="80" y1="6" x2="80" y2="16" stroke="#00f0ff" strokeWidth="2" />
-          <line x1="80" y1="144" x2="80" y2="154" stroke="#00f0ff" strokeWidth="2" />
-          <line x1="6" y1="80" x2="16" y2="80" stroke="#00f0ff" strokeWidth="2" />
-          <line x1="144" y1="80" x2="154" y2="80" stroke="#00f0ff" strokeWidth="2" />
-        </svg>
 
-        {/* Center Active Theory Four-Point Star Emblem */}
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg width="54" height="54" viewBox="0 0 48 48" fill="none">
-            {/* Center diamond core */}
-            <circle cx="24" cy="24" r="5" fill="#C6FF3D" />
-            {/* 4 radiant star arms */}
+          <svg
+            width="64"
+            height="64"
+            viewBox="0 0 48 48"
+            fill="none"
+            style={{
+              overflow: 'visible',
+              filter: 'drop-shadow(0 0 8px rgba(0,240,255,0.8))',
+            }}
+          >
             <path
-              d="M24 2 L26.5 19 L44 24 L26.5 29 L24 46 L21.5 29 L4 24 L21.5 19 Z"
-              fill="rgba(255, 255, 255, 0.95)"
+              d="M24 3 L26.2 19 L43 24 L26.2 29 L24 45 L21.8 29 L5 24 L21.8 19 Z"
+              fill="#FFFFFF"
               stroke="#00F0FF"
-              strokeWidth="1.5"
+              strokeWidth="1.2"
             />
+            <circle cx="24" cy="24" r="3.5" fill="#C6FF3D" />
           </svg>
         </div>
 
-        {/* Active Theory Telemetry Texts Floating beside Ring */}
         <div
           style={{
             position: 'absolute',
-            right: '-160px',
-            top: '28%',
-            width: '140px',
+            left: 'calc(100% + 24px)',
+            maxWidth: '220px',
             fontFamily: 'var(--font-mono)',
-            fontSize: '0.62rem',
-            color: 'var(--muted)',
+            fontSize: '0.66rem',
             lineHeight: 1.45,
+            color: 'rgba(255, 255, 255, 0.88)',
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
             textAlign: 'left',
-            opacity: 0.85,
-            pointerEvents: 'none',
           }}
         >
-          <div style={{ color: 'var(--accent)', fontWeight: 700, marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ display: 'inline-block', width: '5px', height: '5px', borderRadius: '50%', background: '#00F0FF', boxShadow: '0 0 6px #00F0FF' }} />
-            AT_STREAM // 07
+          <div style={{ fontWeight: 700, color: 'var(--accent)', marginBottom: '3px' }}>
+            OUR HOME FOR INNOVATION.
           </div>
-          <div>PROTOTYPES TURN INTO REALITY</div>
-        </div>
-
-        <div
-          style={{
-            position: 'absolute',
-            left: '-140px',
-            bottom: '30%',
-            width: '120px',
-            fontFamily: 'var(--font-mono)',
-            fontSize: '0.68rem',
-            fontWeight: 800,
-            letterSpacing: '0.2em',
-            color: '#fff',
-            textShadow: '0 0 10px rgba(0,240,255,0.6)',
-            textAlign: 'right',
-            pointerEvents: 'none',
-          }}
-        >
-          {'// THE LAB ->'}
+          <div style={{ color: 'var(--muted)' }}>
+            WHERE PROTOTYPES TURN INTO PRODUCTION PROJECTS
+          </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes spinTechRing {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes spinTechRingRev {
-          from { transform: rotate(360deg); }
-          to { transform: rotate(0deg); }
-        }
-        @keyframes pulseGlow {
-          0% { transform: scale(0.9); opacity: 0.6; }
-          100% { transform: scale(1.15); opacity: 0.95; }
-        }
-      `}</style>
     </div>
   )
 }

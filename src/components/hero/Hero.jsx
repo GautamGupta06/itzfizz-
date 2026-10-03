@@ -208,13 +208,13 @@ export default function Hero() {
           }}
         >
           {/* Left Text Block */}
-          <div style={{ flex: '1 1 480px', maxWidth: '580px' }}>
+          <div style={{ flex: '1 1 480px', maxWidth: '580px', position: 'relative', zIndex: 25, pointerEvents: 'auto' }}>
 
             <Headline text="WELCOME ITZFIZZ" />
             <Subtitle />
           </div>
 
-          {/* Right Active Theory Hexagon Portal (Expanded across entire circled region from center to right and bottom) */}
+          {/* Right Active Theory Hexagon Portal */}
           <div
             className="portal-wrapper"
             style={{
@@ -224,6 +224,7 @@ export default function Hero() {
               justifyContent: 'center',
               position: 'relative',
               zIndex: 5,
+              pointerEvents: 'auto',
             }}
           >
             <ActiveTheoryHexPortal />

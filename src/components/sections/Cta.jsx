@@ -101,10 +101,6 @@ export default function Cta() {
 
 
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1.5rem' }}>
-          <div>
-            <p style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>© {new Date().getFullYear()} Itzfizz. All rights reserved.</p>
-            <p style={{ color: 'var(--muted)', fontSize: '0.65rem', opacity: 0.6, marginTop: '0.25rem', fontFamily: 'var(--font-mono)' }}>Built with Vite · React · GSAP · Lenis</p>
-          </div>
           <nav aria-label="Footer navigation" style={{ display: 'flex', gap: '1.5rem' }}>
             {LINKS.map(l => (
               <a key={l.label} href={l.href} target={l.href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer"

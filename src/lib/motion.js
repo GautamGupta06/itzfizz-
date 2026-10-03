@@ -20,7 +20,7 @@ export const STAGGER = {
 
 // Hero scroll values
 export const HERO = {
-  scrub: 1.1,
+  scrub: 0.8,
   carStartX: -0.32,        // × innerWidth
   carEndX:    1.12,        // × innerWidth
   wheelRotation: 1440,
@@ -30,14 +30,15 @@ export const HERO = {
 
 // Preloader
 export const PRELOADER = {
-  minDuration:  1200,   // ms
-  hardTimeout:  4000,   // ms
-  exitDuration: 0.9,
-  exitEase:    'power4.inOut',
+  minDuration:  1800,   // ms
+  hardTimeout:  4500,   // ms
+  exitDuration: 0.8,
+  exitEase:    'power3.inOut',
 }
 
-// Lenis
+// Lenis Butter-smooth scrolling
 export const LENIS = {
-  lerp:        0.09,
+  lerp:        0.075,
   smoothWheel: true,
+  wheelMultiplier: 0.9,
 }

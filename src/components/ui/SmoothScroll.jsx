@@ -21,12 +21,16 @@ export default function SmoothScroll({ children }) {
     const lenis = new Lenis({
       lerp: prefersReduced ? 1 : LENIS.lerp,
       smoothWheel: !prefersReduced,
+      wheelMultiplier: LENIS.wheelMultiplier || 0.9,
+      touchMultiplier: 1.5,
+      infinite: false,
     })
     lenisRef.current = lenis
 
+    // Keep Lenis synchronized with GSAP ticker & ScrollTrigger
     const tickerFn = (time) => lenis.raf(time * 1000)
     gsap.ticker.add(tickerFn)
-    gsap.ticker.lagSmoothing(0)
+    gsap.ticker.lagSmoothing(500, 33)
     lenis.on('scroll', () => ScrollTrigger.update())
 
     return () => {

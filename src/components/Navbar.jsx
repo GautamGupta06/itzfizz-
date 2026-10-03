@@ -9,6 +9,97 @@ const NAV_LINKS = [
   { label: 'About',    href: '#manifesto' },
 ]
 
+/**
+ * NavFlipLink:
+ * Rolling / Flip-up interactive text effect on hover:
+ * - On mouse enter: the current text flips up (-100%) and the duplicate copy rolls up from below
+ * - On mouse leave: the text flips back down to initial position seamlessly
+ */
+function NavFlipLink({ label, onClick }) {
+  const containerRef = useRef(null)
+  const rollRef = useRef(null)
+
+  const handleMouseEnter = () => {
+    if (!rollRef.current) return
+    gsap.to(rollRef.current, {
+      yPercent: -50,
+      duration: 0.35,
+      ease: 'power3.out',
+    })
+  }
+
+  const handleMouseLeave = () => {
+    if (!rollRef.current) return
+    gsap.to(rollRef.current, {
+      yPercent: 0,
+      duration: 0.35,
+      ease: 'power3.out',
+    })
+  }
+
+  return (
+    <button
+      ref={containerRef}
+      onClick={onClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className="nav-flip-link"
+      style={{
+        position: 'relative',
+        display: 'inline-block',
+        height: '1.25rem',
+        overflow: 'hidden',
+        background: 'none',
+        border: 'none',
+        padding: 0,
+        cursor: 'pointer',
+        fontFamily: 'var(--font-body)',
+        fontSize: '0.82rem',
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+        fontWeight: 500,
+        lineHeight: 1,
+      }}
+    >
+      <span
+        ref={rollRef}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          willChange: 'transform',
+          transform: 'translateY(0%)',
+        }}
+      >
+        {/* Primary initial text */}
+        <span
+          style={{
+            height: '1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            color: 'var(--muted)',
+            transition: 'color 0.2s',
+          }}
+        >
+          {label}
+        </span>
+        {/* Clone text rolling up from below with glowing neon accent */}
+        <span
+          aria-hidden="true"
+          style={{
+            height: '1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            color: 'var(--ink)',
+            textShadow: '0 0 10px rgba(0, 240, 255, 0.4), 0 0 20px rgba(198, 255, 61, 0.3)',
+          }}
+        >
+          {label}
+        </span>
+      </span>
+    </button>
+  )
+}
+
 export default function Navbar() {
   const navRef  = useRef(null)
   const menuRef = useRef(null)
@@ -80,20 +171,14 @@ export default function Navbar() {
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent)', display: 'inline-block' }} aria-hidden="true" />
         </a>
 
-        {/* Desktop links */}
-        <nav aria-label="Main navigation" style={{ display: 'flex', gap: '2rem' }} className="desktop-nav">
+        {/* Desktop links with Rolling / Flip-Up Animation */}
+        <nav aria-label="Main navigation" style={{ display: 'flex', gap: '2.2rem', alignItems: 'center' }} className="desktop-nav">
           {NAV_LINKS.map(l => (
-            <button key={l.label} onClick={() => scrollTo(l.href)}
-              style={{ fontFamily: 'var(--font-body)', color: 'var(--muted)', fontSize: '0.8rem', letterSpacing: '0.06em', textTransform: 'uppercase', background: 'none', border: 'none', cursor: 'pointer', transition: 'color 0.2s' }}
-              onMouseEnter={e => e.target.style.color = 'var(--ink)'}
-              onMouseLeave={e => e.target.style.color = 'var(--muted)'}
-            >
-              {l.label}
-            </button>
+            <NavFlipLink key={l.label} label={l.label} onClick={() => scrollTo(l.href)} />
           ))}
         </nav>
 
-        {/* CTA */}
+        {/* CTA with Clean Roll-Up Flip Effect */}
         <MagneticButton
           href="mailto:hello@itzfizz.com"
           strength={8}
@@ -101,15 +186,54 @@ export default function Navbar() {
           className="desktop-cta"
           style={{
             fontFamily: 'var(--font-mono)', fontSize: '0.7rem', letterSpacing: '0.15em',
-            textTransform: 'uppercase', padding: '0.6rem 1.25rem',
+            textTransform: 'uppercase', padding: '0 1.25rem',
             borderRadius: '9999px', border: '1px solid var(--accent)',
             color: 'var(--accent)', textDecoration: 'none',
-            transition: 'background 0.3s, color 0.3s',
+            overflow: 'hidden',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '2.4rem',
+            boxSizing: 'border-box',
+            transition: 'background 0.3s, color 0.3s, border-color 0.3s',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = 'var(--bg)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'var(--accent)' }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'var(--accent)'
+            e.currentTarget.style.color = '#000000'
+            const textInner = e.currentTarget.querySelector('.cta-flip-inner')
+            if (textInner) gsap.to(textInner, { y: -38, duration: 0.3, ease: 'power2.out' })
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'transparent'
+            e.currentTarget.style.color = 'var(--accent)'
+            const textInner = e.currentTarget.querySelector('.cta-flip-inner')
+            if (textInner) gsap.to(textInner, { y: 0, duration: 0.3, ease: 'power2.out' })
+          }}
         >
-          Start a project
+          <span
+            style={{
+              display: 'block',
+              height: '38px',
+              overflow: 'hidden',
+              position: 'relative',
+            }}
+          >
+            <span
+              className="cta-flip-inner"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                willChange: 'transform',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '38px', whiteSpace: 'nowrap' }}>
+                Start a project
+              </span>
+              <span aria-hidden="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '38px', whiteSpace: 'nowrap' }}>
+                Start a project
+              </span>
+            </span>
+          </span>
         </MagneticButton>
 
         {/* Hamburger */}
